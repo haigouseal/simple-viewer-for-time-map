@@ -5,250 +5,300 @@
 <meta name="description" content="Simple viewer for Vineyards time map (with OpenLayers 3)" />
 <meta name="keywords" content="time-map, openlayers 3, vineyard, netCDF" />
 <meta name="authors" content="Haitao Wang, CGIT" />
-<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="http://openlayers.org/en/v3.9.0/css/ol.css" type="text/css">
-<script src="http://openlayers.org/en/v3.9.0/build/ol.js"></script>
+<!-- include the jQuery and jQuery UI scripts -->
+<script src="https://code.jquery.com/jquery-2.1.1.js"></script>
+<script src="https://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+<!-- include the bootstrap scripts -->
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"></link>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<!-- include the map api -->
+<link rel="stylesheet" href="http://openlayers.org/en/v3.9.0/css/ol.css" type="text/css"></link>
+<script src="//openlayers.org/en/v3.9.0/build/ol.js"></script>
+<!-- include other vendors library -->
+<script src="vendors/jQuery-ui-Slider-Pips/jquery-ui-slider-pips.js"></script>
+<link rel="stylesheet" href="vendors/jQuery-ui-Slider-Pips/jquery-ui-slider-pips.css">
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/flick/jquery-ui.css">
+
 
 <style>
-#layertree li > span {
-	cursor: pointer;
+#map {
+	height: 360px;
+	position: relative;
+}
+#toolbar{
+	position: absolute;
+	top: 0.5em;
+	left: 0.5em;
+	z-index:2; /*must on top of map*/
+	opacity: 0.85;
+	filter: alpha(opacity=85);
+}
+#loading {
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	left: 0;
+	top: 0;
+	background: #ccc url('img/loading.gif') center center no-repeat;
+	opacity: 0.65;
+	filter: alpha(opacity=65);
+	display: none;
+	z-index: 999; /*above the map, below map toolbar*/
+	
 }
 
+
+/*Map metrics */
+#metricBox{
+	color: #31708f;
+	background-color: white;
+	position: absolute; /*relative to #map*/
+	bottom: 0;
+	right: 0;
+	margin: 0.2em;
+	min-width: 160px;
+	padding: 0.2em;
+	font-size: 0.8em;
+	opacity: 0.55;
+	filter: alpha(opacity=55);
+	z-index: 2; /*must on top of map*/
+}
+#metricBox .ol-mouse-position {
+	position: relative;
+	left: 0;
+	top: 0;
+	padding-left: 20px;
+	background: url('img/map-location.png') 5px center no-repeat;
+}
+#metricBox .ol-scale-line {
+	position: relative;
+	top: 0;
+	left: 0;
+	margin: 2px 0;
+	padding-left: 20px;
+	background: transparent url('img/map-scale.png') 5px center no-repeat;
+}
+#metricBox .ol-scale-line-inner { 
+	/*scaleline min-width has to be defined in olmap.js*/
+	color: #31708f;
+	font-size: 0.8em;
+	border-color: -moz-use-text-color #31708f #31708f;
+	border-color: #31708f;
+	line-height: 1em;
+}
+
+/* MISCS */
+
+blockquote {
+	font-size: 12px;
+}
+
+.output, textarea.output, select.output {
+	height: 120px;
+	margin: 2px;
+	font-size: 11px;
+	color: blue;
+	overflow: auto;
+}
+#selectionlist {
+	height: 28px;
+}
+
+.map-area {
+	position: relative;
+}
+#map-title {
+	position: absolute;
+	color: white;
+	top: 5px;
+	right: 20px;
+}
+#currentTime {
+	position: absolute;
+	color: yellow;
+	top: 50px;
+	right: 20px;
+}
+#time-slider{
+	/*leave more space at right for long label*/
+	margin: 20px 50px 50px 10px;
+	
+}
+.highlight {
+	background-color: #f7f7f9;
+	border: 1px solid #e1e1e8;
+	border-radius: 4px;
+	margin-bottom: 14px;
+	padding: 9px 14px;
+}
 </style>
 </head>
 <body>
 <div class="container-fluid">
-<h2>Simple viewer for Vineyards time-map</h2>
-		<blockquote>
-		<h4>Proposed Solution</h4>
-			<ol>
-			<li>Request all images within a certain time-period from WMS, and add to an empty netCDF Layer group</li>
-			<li>Sort the time stamps which are later used to create nodes in a time slider;</li>
-			<li>The time slider triggers an event that modify the corresponding layers using one of these methods:<br>
-			 (1) add / remove layer (2) change layer order: move up / down (3) switch layer visibility (4) toggle layer opacity ;</li>
-			<li>(Optional) Build a play/loop function to animate the sequence </li>
-			<footer>update: Sep 09, 2015</footer>
-			</ol>
-		</blockquote>
-<div class="row-fluid">
-	<div class="span6">
-		<div id="map" class="map"></div>
+	<h2>Simple viewer for Vineyards time-map</h2>
+	<div class="row-fluid">
+		<div class="map-area col-sm-8">
+			<div id="map" class="map">
+				<div id="toolbar" >
+					<nav class="navbar navbar-default row" id="map-tool">
+						<button type="button" class="btn btn-default btn-sm vineyard-modify map-tool-item"
+							id="select" data-toggle="tooltip" data-placement="bottom"
+							title="Select element"><span class="glyphicon glyphicon-hand-up" 
+							aria-hidden="true"></span>
+						</button>
+						<span id="fullScreen" class="btn btn-default btn-sm map-tool-item"
+							data-toggle="tooltip" data-placement="bottom" title="Fullscreen">
+						</span>
+					</nav><!--// .nav -->
+				</div><!--// #toolbar  -->
+				<div id="metricBox">
+					<div class="draw-measurement"></div>
+				</div>
+			</div>
+			<div id="map-title" class="overlay"> </div>
+			<div id="currentTime" class="overlay"> </div>
+			<div id="loading"></div>
+		</div>
+		<div class="col-sm-4">
+			<blockquote>
+				<h4>Proposed Solution</h4>
+				<ol>
+				<li>Request all images within a certain time-period from WMS, and add to an empty netCDF Layer group</li>
+				<li>Sort the time stamps which are later used to create nodes in a time slider;</li>
+				<li>The time slider triggers an event that modify the corresponding layers using one of these methods:<br/>
+				 (1) add / remove layer (2) change layer order: move up / down (3) switch layer visibility (4) toggle layer opacity ;</li>
+				<li>(Optional) Build a play/loop function to animate the sequence </li>
+				<footer>update: Sep 23, 2015</footer>
+				</ol>
+			</blockquote>
+		</div>
 	</div>
-	<div id="layertree" class="span6">
-		<h3>Layer Visibility & Opacity</h3>
-		<ul>
-			<li><span>netCDF Layer group</span>
-				<fieldset id="layer1">
+	
+	<div class="container-fluid">
+		<div id="timeSelector" class="col-sm-4">
+			<h4>Step 1: Time Selector</h4>
+			<div class="form-group">
+				<p>1. Get and parser capability info from GeoServer</p>
+				<div class="btn-group btn-group-xs" role="group" aria-label="parse-capability-xml">
+					<button id="parseXML" type="button btn-sm" class="btn btn-primary">Parse XML</button>
+					<button type="button" class="clear btn btn-success">Clear</button>
+				</div>
+				<textarea id="xmllog" class="output form-control" ></textarea>
+			</div>
+			
+			<div class="form-group">
+				<p>2. Parse Time Dimension into a timestamps list</p>		
+				<div class="btn-group btn-group-xs" role="group" aria-label="parse-time-dimension">
+					<button id="parseTime" type="button btn-sm" class="btn btn-primary">Parse Time</button>
+					<button type="button" class="clear btn btn-success">Clear</button>
+				</div>
+				<textarea id="timelist" class="output form-control" ></textarea>
+			</div>
+			
+			<div class="form-group">
+				<p>3. Build timestamps selection</p>
+				<div class="btn-group btn-group-xs" role="group" aria-label="build-time-selection">
+					<button id="buildSelect" type="button btn-sm" class="btn btn-primary">Build Selection</button>
+					<button type="button" class="clear btn btn-success">Clear</button>
+				</div>
+				<select id="timeSelection" class="output form-control" multiple></select>
+			</div>
+		</div>
+		
+		<div id="layerCreator" class="col-sm-4">
+			<h4>Step 2: Generate netcdf Layer Group</h4>
+			<div class="form-group">
+				<p>1. Create Layers from Selection</p>
+				<div class="btn-group btn-group-xs" role="group" aria-label="build-time-selection">
+					<button id="createLayers" type="button" class="btn btn-xs btn-info">Selection > Layers</button>
+					<button type="button btn-sm" class="clear btn btn-success">Clear</button>
+				</div>
+				<select id="selectionlist" class="output form-control"></select>
+			</div>
+			
+			<div class="form-group">
+				<p>2. Get all images from GeoServer (and add to map)</p>
+				<div class="btn-group btn-group-xs" role="group" aria-label="build-time-selection">
+					<button id="addLayers" type="button" class="btn btn-xs btn-info">Get + Add Map Layers</button>
+					<button type="button" class="clear btn btn-success">Clear</button>
+				</div>
+				<ul id="layerlist" class="output">
+					<!-- List format: 
+					<li>
 					<label class="checkbox" for="visible1">
-						<input id="visible1" class="visible" type="checkbox"/>visibility
+						<fieldset id="layer0"><input id="visible0" class="visible" type="checkbox"/><span>netCDF Layer 1</span></fieldset>
 					</label>
-					<label>opacity</label>
-					<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-				</fieldset>
-				<ul>
-					<li><span>netCDF Layer 1</span>
-						<fieldset id="layer10">
-							<label class="checkbox" for="visible10">
-								<input id="visible10" class="visible" type="checkbox"/>visibility
-							</label>
-							<label>opacity</label>
-							<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-						</fieldset>
 					</li>
-					<li><span>netCDF Layer 2</span>
-						<fieldset id="layer11">
-							<label class="checkbox" for="visible11">
-								<input id="visible11" class="visible" type="checkbox"/>visibility
-							</label>
-							<label>opacity</label>
-							<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-						</fieldset>
-					</li>
-					<li><span>netCDF Layer 3</span>
-						<fieldset id="layer12">
-							<label class="checkbox" for="visible12">
-								<input id="visible12" class="visible" type="checkbox"/>visibility
-							</label>
-							<label>opacity</label>
-							<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-						</fieldset>
-					</li>
-					<li><span>netCDF Layer 4</span>
-						<fieldset id="layer13">
-							<label class="checkbox" for="visible13">
-								<input id="visible13" class="visible" type="checkbox"/>visibility
-							</label>
-							<label>opacity</label>
-							<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-						</fieldset>
-					</li>
-					<li><span>netCDF Layer 5</span>
-						<fieldset id="layer14">
-							<label class="checkbox" for="visible14">
-								<input id="visible14" class="visible" type="checkbox"/>visibility
-							</label>
-							<label>opacity</label>
-							<input class="opacity" type="range" min="0" max="1" step="0.1"/>
-						</fieldset>
-					</li>
+					-->
 				</ul>
-			</li>		
-			<li><span>BaseLayer</span>
-				<fieldset id="layer0">
-					<label class="checkbox" for="visible0">
-						<input id="visible0" class="visible" type="checkbox"/>visibility
-					</label>
-					<label>opacity</label>
-					<input class="opacity" type="range" min="0" max="1" step="0.1"/>
+			</div>
+		</div>
+		
+		<div id="layerVisual" class="col-sm-4">
+			<h4>Step 3: Layer Visibility and Animation</h4>
+			<div class="form-group">
+				<p>1. Build time-slider from selected time stamp</p>
+				<div class="btn-group btn-group-xs" role="group" aria-label="build-time-selection"></div>
+				<div id="time-slider" class="slider"></div>
+			</div>
+			
+			<div id="layerVisPanel" class="VisPanel form-horizontal">
+				<p>2. Additional visibility controls</p>
+				<fieldset>
+					<div class="form-group highlight">
+						<div class="form-group form-group-sm">
+							<label class="col-sm-2 control-label">Opacity</label>
+							<div class="col-sm-10">
+								<input class="opacity slider" type="range" min="0" max="1" step="0.01"/>
+							</div>
+						</div>
+						<div class="form-group form-group-sm">
+							<label class="col-sm-2 control-label">Hue</label>
+							<div class="col-sm-10">
+								<input class="hue slider" type="range" min="-3.141592653589793" max="3.141592653589793" step="0.01"/>
+							</div>
+						</div>
+						<div class="form-group form-group-sm">
+							<label class="col-sm-2 control-label">Saturation</label>
+							<div class="col-sm-10">
+							<input class="saturation slider" type="range" min="0" max="5" step="0.01"/>
+							</div>
+						</div>
+						<div class="form-group form-group-sm">
+							<label class="col-sm-2 control-label">Contrast</label>
+							<div class="col-sm-10">
+								<input class="contrast slider" type="range" min="0" max="2" step="0.01"/>
+							</div>
+						</div>
+						<div class="form-group form-group-sm">
+							<label class="col-sm-2 control-label">Brightness</label>
+							<div class="col-sm-10">
+								<input class="brightness slider" type="range" min="-1" max="1" step="0.01"/>
+							</div>
+						</div>
+					</div>
 				</fieldset>
-			</li>
-		</ul>
+			</div>
+			<div class="form-group VisPanel">
+				<p>3. Add slider controls</p>
+				<div>
+					<button id="playSlider" type="button" class="btn btn-xs btn-info">Play Slider</button>
+					<button id="PauseSlider" type="button" class="btn btn-xs btn-warning">Pause Slider</button>
+					<button id="disableSlider" type="button" class="btn btn-xs btn-danger">Disable Slider</button>
+					
+				</div>
+			</div>
+		</div>
 	</div>
-</div>
 
 </div>
+<script src="time-map.js"></script>
+
 <script>
-// define mapconfig
-var mapConfig = {'styles':{} };
-mapConfig.defaultView = {zoom: 6, center: [-78.56, 38.04]};
-mapConfig.projection = 'EPSG:3857';
-
-// define map layers (baselayer, sample netCDF layers)
-var baseLayers = new ol.layer.Tile({
-		source: new ol.source.MapQuest({layer: 'sat'})
-});
-
-var netcdfLayers = new ol.layer.Group({
-	title: 'netcdf layer group',
-	layers: [
-		new ol.layer.Image({
-			title: 'netcdf layer 1 (2015-08-24T00:00:00.000Z)',
-			source: new ol.source.ImageWMS({
-				 url: 'http://198.82.152.38:8080/geoserver/ows',
-				 params: {
-					'layers': 'netCDFtesting:devWDIR',
-					'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999', //can be derives from user's site boundary
-					'width': '768', //from interactive drawing?
-					'height': '330',
-					'format': 'image/png', 
-					'crs': 'EPSG:4326', 
-					'time': '2015-08-24T00:00:00.000Z'
-				}
-			})
-		}),
-		new ol.layer.Image({
-			title: 'netcdf layer 2 (2015-08-24T01:00:00.000Z)',
-			source: new ol.source.ImageWMS({
-				 url: 'http://198.82.152.38:8080/geoserver/ows',
-				 params: {
-					'layers': 'netCDFtesting:devWDIR',
-					'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999',
-					'width': '768',
-					'height': '330',
-					'format': 'image/png',
-					'crs': 'EPSG:4326',
-					'time': '2015-08-24T01:00:00.000Z'
-				}
-			})
-		}),
-		new ol.layer.Image({
-			title: 'netcdf layer 3 (2015-08-24T02:00:00.000Z)',
-			source: new ol.source.ImageWMS({
-				 url: 'http://198.82.152.38:8080/geoserver/ows',
-				 params: {
-					'layers': 'netCDFtesting:devWDIR',
-					'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999',
-					'width': '768',
-					'height': '330',
-					'format': 'image/png',
-					'crs': 'EPSG:4326',
-					'time': '2015-08-24T02:00:00.000Z'
-				}
-			})
-		}),
-		new ol.layer.Image({
-			title: 'netcdf layer 4 (2015-08-24T03:00:00.000Z)',
-			source: new ol.source.ImageWMS({
-				 url: 'http://198.82.152.38:8080/geoserver/ows',
-				 params: {
-					'layers': 'netCDFtesting:devWDIR',
-					'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999',
-					'width': '768',
-					'height': '330',
-					'format': 'image/png',
-					'crs': 'EPSG:4326',
-					'time': '2015-08-24T03:00:00.000Z'
-				}
-			})
-		}),
-		new ol.layer.Image({
-			title: 'netcdf layer 5 (2015-08-24T04:00:00.000Z)',
-			source: new ol.source.ImageWMS({
-				 url: 'http://198.82.152.38:8080/geoserver/ows',
-				 params: {
-					'layers': 'netCDFtesting:devWDIR',
-					'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999',
-					'width': '768',
-					'height': '330',
-					'format': 'image/png',
-					'crs': 'EPSG:4326',
-					'time': '2015-08-24T04:00:00.000Z'
-				}
-			})
-		})
-	]
-});
-
-// define map view
-var view = new ol.View({
-	zoom : mapConfig.defaultView.zoom,
-	//maxZoom: 12,
-	center : ol.proj.transform(mapConfig.defaultView.center, 'EPSG:4326', mapConfig.projection),
-	projection: mapConfig.projection
-});
-
-
-//Create a map and add controls
-var map = new ol.Map({
-	target : 'map',
-	///layers: drawLayers must be the last one
-	layers : [baseLayers, netcdfLayers],
-	view : view
-});
-
-function bindInputs(layerid, layer) {
-	var visibilityInput = $(layerid + ' input.visible');
-	visibilityInput.on('change', function() {
-		layer.setVisible(this.checked);
-	});
-	visibilityInput.prop('checked', layer.getVisible());
-
-	//$.each(['opacity', 'hue', 'saturation', 'contrast', 'brightness'],
-	$.each(['opacity'],
-			function(i, v) {
-				var input = $(layerid + ' input.' + v);
-				input.on('input change', function() {
-					layer.set(v, parseFloat(this.value));
-				});
-				input.val(String(layer.get(v)));
-			}
-	);
-}
-map.getLayers().forEach(function(layer, i) {
-	bindInputs('#layer' + i, layer);
-	if (layer instanceof ol.layer.Group) {
-		layer.getLayers().forEach(function(sublayer, j) {
-			bindInputs('#layer' + i + j, sublayer);
-		});
-	}
-});
-
-$('#layertree li > span').click(function() {
-	$(this).siblings('fieldset').toggle();
-}).siblings('fieldset').show();
-
+$(document).ready(function(){
+	$('.output').html('').val('');
+	$('.VisPanel').hide();
+})
 </script>
 </body>
 </html>
