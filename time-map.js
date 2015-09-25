@@ -5,7 +5,19 @@
  */
 
 /* server configuration */
-var geoserverURL = '';
+var serviceConfig = {
+	//See full list at http://docs.geoserver.org/stable/en/user/services/wms/reference.html#getmap
+	'URL': 'http://198.82.152.38:8080/geoserver/ows',
+	'version': '1.3.0',
+	'ImageWMSParams': {
+		'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999',
+		'WIDTH': '768',
+		'HEIGHT': '330',
+		'format': 'image/png',
+		'transparent': 'true'
+	}
+};
+
 var netcdfLayerName = 'netCDFtesting:devWDIR';
 
 /* map configurations */
@@ -81,11 +93,10 @@ $('#parseXML').click(function (){
 	//get and parse XML from WMSCapabilities
 	var parser = new ol.format.WMSCapabilities();
 	$.ajax({
-			url: 'data.xml',
-			//url: geoserverURL + '?SERVICE=WMS&VERSION=1.3.0&REQUEST=getCapabilities&FORMAT=image%2Fpng&TRANSPARENT=true&layers=netCDFtesting%3AdevWDIR&bbox=-83.807%2C36.433%2C-74.91299999999998%2C39.82899999999999&width=768&height=330&format=image%2Fpng&crs=EPSG%3A4326&time=2015-08-24T00%3A00%3A00.000Z&CRS=EPSG%3A3857&STYLES=&WIDTH=1601&HEIGHT=751&BBOX=-10702406.952377237%2C3667754.3652358977%2C-6786385.119271088%2C5504689.028985254',
-			//method: 'GET',
-			//dataType: 'XML',
-			//crossDomain: 'true',
+			url: serviceConfig.URL + '?SERVICE=WMS&VERSION=' + serviceConfig.version + '&REQUEST=getCapabilities',
+			method: 'GET',
+			dataType: 'XML',
+			crossDomain: 'true',
 			success:function(){
 				console.log('Get XML successfully');
 			},
@@ -104,7 +115,7 @@ var timeList = [];
 $('#parseTime').click(function (){
 	//temporary solution: hard-coded path of netcdf layer
 	
-	var tDim = result.Capability.Layer.Layer[1].Dimension[0].values.split(',');
+	var tDim = result.Capability.Layer.Layer[7].Dimension[0].values.split(',');
 	//console.log(tDim);
 	$.each(tDim, function(i, v) {
 		timeList.push(v.split('/').shift()); //keep the start time only
@@ -143,26 +154,19 @@ function createNetcdfLayers (){
 			option += '<option id='+ key +' value="' + time + '">netCDF Layer ' + key + ' (' + time + ')</option>';
 			li += '<li><label class="checkbox" for="visible' + key + '"><fieldset id="layer' + key + '"><input id="visible' + key + '" class="visible" type="checkbox" checked="false"/><span>netCDF Layer ' + key + ' (' + time + ')</span></fieldset></label></li>';
 			//create layer iteratively from selected time
+			var params = $.extend ({
+				layers: netcdfLayerName,
+				crs: mapConfig.projection,
+				time: time
+			}, 
+			serviceConfig.ImageWMSParams
+			);
 			var layer = new ol.layer.Image({
 				title: time, //TODO: display title on map
 				visible: true, //set layer visible rather than hidden to cache the images for slider play 
 				source: new ol.source.ImageWMS({
-					 url: geoserverURL,
-					 params: {
-						layers: netcdfLayerName,
-						crossOrigin: 'anonymous',
-
-						/**
-						* TODO: use draw interaction to define bbox, width, height
-						* How about save image locally. Maybe for generating a gif/movie in future?  
-						*/
-						'bbox': '-83.807,36.433,-74.91299999999998,39.82899999999999', 
-						width: '768',
-						height: '330',
-						format: 'image/png',
-						crs: 'EPSG:4326',
-						time: time
-					}
+					 url: serviceConfig.URL,
+					 params: params
 				})
 			});
 			//add layer to group layer iteratively 

@@ -22,7 +22,7 @@
 
 <style>
 #map {
-	height: 360px;
+	height: 560px;
 	position: relative;
 }
 #toolbar{
@@ -46,7 +46,25 @@
 	z-index: 999; /*above the map, below map toolbar*/
 	
 }
+/* overlays */
+.map-area {
+	position: relative;
+}
+.overlay {
+	z-index: 2;
+	position: absolute;
+}
 
+#map-title {
+	color: white;
+	top: 5px;
+	right: 20px;
+}
+#currentTime {
+	color: yellow;
+	top: 50px;
+	right: 20px;
+}
 
 /*Map metrics */
 #metricBox{
@@ -67,16 +85,13 @@
 	position: relative;
 	left: 0;
 	top: 0;
-	padding-left: 20px;
-	background: url('img/map-location.png') 5px center no-repeat;
 }
 #metricBox .ol-scale-line {
 	position: relative;
 	top: 0;
 	left: 0;
 	margin: 2px 0;
-	padding-left: 20px;
-	background: transparent url('img/map-scale.png') 5px center no-repeat;
+	background: transparent;
 }
 #metricBox .ol-scale-line-inner { 
 	/*scaleline min-width has to be defined in olmap.js*/
@@ -104,21 +119,6 @@ blockquote {
 	height: 28px;
 }
 
-.map-area {
-	position: relative;
-}
-#map-title {
-	position: absolute;
-	color: white;
-	top: 5px;
-	right: 20px;
-}
-#currentTime {
-	position: absolute;
-	color: yellow;
-	top: 50px;
-	right: 20px;
-}
 #time-slider{
 	/*leave more space at right for long label*/
 	margin: 20px 50px 50px 10px;
@@ -139,24 +139,13 @@ blockquote {
 	<div class="row-fluid">
 		<div class="map-area col-sm-8">
 			<div id="map" class="map">
-				<div id="toolbar" >
-					<nav class="navbar navbar-default row" id="map-tool">
-						<button type="button" class="btn btn-default btn-sm vineyard-modify map-tool-item"
-							id="select" data-toggle="tooltip" data-placement="bottom"
-							title="Select element"><span class="glyphicon glyphicon-hand-up" 
-							aria-hidden="true"></span>
-						</button>
-						<span id="fullScreen" class="btn btn-default btn-sm map-tool-item"
-							data-toggle="tooltip" data-placement="bottom" title="Fullscreen">
-						</span>
-					</nav><!--// .nav -->
-				</div><!--// #toolbar  -->
 				<div id="metricBox">
 					<div class="draw-measurement"></div>
 				</div>
-			</div>
 			<div id="map-title" class="overlay"> </div>
 			<div id="currentTime" class="overlay"> </div>
+			</div>
+
 			<div id="loading"></div>
 		</div>
 		<div class="col-sm-4">
